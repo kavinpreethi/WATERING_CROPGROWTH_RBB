@@ -260,6 +260,7 @@ to colour-setup
   ask patches with [ p_type = 0 ] [ set pcolor set-colour maxWL minWL ]
 end
 
+;; create farmers on irrigable patches
 to create-farms
   ;; create farms
   ;; farms will be located closer to canals to get water more easily (data + expert insight)
@@ -275,6 +276,7 @@ to create-farms
   ]
 end
 
+;; initialise attributes for farmers
 to create-farm-attributes
   ask farmers [ set f_size 0.5 + random-exponential 5 ]
   ;; more than one crop may be grown on the same plot each year, but max. only one crop per season
@@ -302,6 +304,7 @@ to set-crop-calendar
     [ false ] ]
 end
 
+;; create the annual cropping rota for each farm (farmer)
 to set-crop-rota
   ask farmers [
     set f_crop_stage table:make
@@ -390,6 +393,7 @@ to set-crop-rota
   ]
 end
 
+;; calculate the irrigation water demand for each farm (farmer)
 to calc-irr-demand
   ;; simple calculation method - ref: FAO manual
   ;; step 1: collate yearly temperature and rainfall data
@@ -399,9 +403,9 @@ to calc-irr-demand
   let yearly_ETo []      ;; annual reference crop evapotranspiration
   let loc_counter 0      ;; local counter
 
-  let prcp rainfall_pattern
+  let prcp rainfall_pattern ;; rainfall_pattern for each month between jan-dec (set via the Interface) based on empirical data from our case study region; change as desired
   repeat 12 [
-    set prcp replace-item loc_counter prcp abs (item loc_counter prcp * random-normal mean_prcp prcp_variation * sin (loc_counter * 15))
+    set prcp replace-item loc_counter prcp abs (item loc_counter prcp * random-normal mean_prcp prcp_variation * sin (loc_counter * 15)) ;; mean and std. dev for precipitation (set via the Interface) based on empirical data from our case study region; change as desired
     set loc_counter loc_counter + 1
   ]
   set prcp map round prcp
@@ -411,9 +415,9 @@ to calc-irr-demand
     let mR item loc_counter prcp ;; monthly rainfall
     let mRE ifelse-value ( mR >= 75 ) [ (0.8 * mR) - 25 ] [ max list 0 ((0.6 * mR) - 10) ] ; monthly rainfall effective
     set mRE round mRE
-    let mTemp precision (random-normal mean_temp temp_variation) 1 ;; mean and std. dev for temp. based on empirical data
+    let mTemp precision (random-normal mean_temp temp_variation) 1 ;; mean and std. dev for temperature (set via the Interface) based on empirical data from our case study region; change as desired
     set yearly_temp lput mTemp yearly_temp
-    let mETo precision (item loc_counter daytime_hours * ((0.46 * mTemp) + 8)) 1 ; monthly ref. crop evapotranspiration
+    let mETo precision (item loc_counter daytime_hours * ((0.46 * mTemp) + 8)) 1 ;; monthly ref. crop evapotranspiration
     set yearly_pre lput mR yearly_pre
     set yearly_pre_eff lput mRE yearly_pre_eff
     set yearly_ETo lput mETo yearly_ETo
@@ -458,7 +462,7 @@ to calc-irr-demand
              set demandNET precision (0.00001 * f_size * demandNET) 4
              ;; gross irrigation demand MCM/month
              ;; gross irrigation requirement: net irrigation requirement / schemeIrrEfficiency
-             ;; where schemeIrrEfficiency = Ec * Ea, Ec - conveyance efficiency, Ea - field application efficiency
+             ;; where irrigationEfficiency = Ec * Ea, Ec - conveyance efficiency, Ea - field application efficiency
              let demandGROSS demandNET / irrigationEfficiency
              table:put f_ann_EtCrop x lput etCrop table:get f_ann_EtCrop x
              table:put f_ann_net_crop x lput demandNET table:get f_ann_net_crop x
@@ -574,10 +578,10 @@ to route-water
 end
 
 to water-losses
-  ;; reduce water level by loss-rate, which is linear and not proportional as it is due to surface area, not volume
-   if loss-rate > 0 and losses?
+  ;; reduce water level by lossRate, which is linear and not proportional as it is due to surface area, not water volume
+   if lossRate > 0 and losses?
    [ ask patches with [ water_level > surface_level ]
-     [ set water_level water_level - random-float loss-rate
+     [ set water_level water_level - random-float lossRate
        if water_level < surface_level
        [ ; don't allow level to be below elev!
          set water_level surface_level
@@ -748,7 +752,6 @@ to-report get-season-cal
   report seasonCal
 end
 
-
 ;; calculate the annual crop growing season based on inputs provided under
 to-report get-crop-cal [ month period ]
   let cropCal n-values 12 ["NC"] ;; NC stands for no cultivation
@@ -815,7 +818,6 @@ to-report get-crop-cal [ month period ]
   ]
   report cropCal
 end
-
 
 ;; calculate the crop calendar of farmer based on season_month and crop_calendar
 to-report get-farmer-crop-cal
@@ -1229,15 +1231,15 @@ water losses from evaporation and absorption
 1
 
 SLIDER
-202
-655
-342
-688
-loss-rate
-loss-rate
+204
+660
+337
+693
+lossRate
+lossRate
 0
 0.005
-0.0
+5.0E-4
 0.0005
 1
 NIL
@@ -1506,7 +1508,9 @@ HORIZONTAL
 @#$#@#$#@
 ## WHAT IS IT?
 
-This NetLogo model is a Reusable Building Block (RBB) called WATERING_CROPGROWTH_RBB. It is a sub-model of the WATER user associations at the Interface of Nexus Governance (WATERING) model (see https://www.youtube.com/watch?v=U-nqs9ak2nY) and extends the WATERING_IRRIGATION_RBB (https://github.com/kavinpreethi/WATERING_IRRIGATION_RBB). WATERING allows exploring the impact of community-based water governance on water availability, water use and economic productivity within an irrigation scheme. 
+This NetLogo model is a reusable component (also referred to as a Reusable Building Block or RBB) called WATERING_CROPGROWTH_RBB.
+
+It is a sub-model of the WATER user associations at the Interface of Nexus Governance (WATERING) model (see https://www.youtube.com/watch?v=ZfSs__Lu52o) and extends the WATERING_IRRIGATION_RBB NetLogo model (https://github.com/kavinpreethi/WATERING_IRRIGATION_RBB) 
 
 ## HOW IT WORKS
 
@@ -1514,11 +1518,18 @@ This NetLogo model is a Reusable Building Block (RBB) called WATERING_CROPGROWTH
 
 * This RBB represents an irrigation system made up of different types of patches. On setup you can identify these as: reservoir (water store providing water to the irrigation scheme), buffer zone (dummy area), main canal (principal outlet from reservoir), secondary canal (multiple outlets from the main canal), and water recipients (all green patches on setup). 
 
-* On setup, the varying shades of green indicate the slope of patches. Darker the green, greater the elevation of patches. Water reaches patches with the highest elevation first (assuming water is pumped up for the purpose of irrigation) and then flows to patches with lower elevations
+* On setup, the varying shades of green indicate the height of patches. Darker the green, greater the elevation of patches. Water reaches patches with the highest elevation first (assuming water is pumped up for the purpose of irrigation) and then flows to patches with lower elevations
 
 * Water allocated for irrigation flows from the reservoir -> main canal -> secondary canals and finally reaches the water recipient patches
 
-* The route-water process controls how water flows through the irrigation system
+* The route-water procedure controls how water flows through the irrigation system
+
+* The track-crop-growth procedure calculates the growth of crops during the growing season divided into four distinct growth stages (initial, development, mid-season, and late season). Crop growth is affected by the quantity of water available for irrigation
+
+* The calc-irr-demand procedure calculates the water demand for the crops grown on each farm plot. Water demand varies based on the crop growth stage (initial, development, mid-season, and late season)
+
+* The RBB allows each farmer to grow one or two crops per year. Crops grown can be dry season crops, wet season crops, or multi-season crops. You can change which dry, wet and rainy season crops are grown, for how long, and during which months by changing relevant values in the 'Crop Growth' section of the Interface. Also refer to the set-crop-calendar and set-crop-rota procedures.
+
 
 ## HOW TO USE IT
 
@@ -1527,39 +1538,54 @@ _**minRElevation:**_ Minimum water level (elevation) in source
 _**meanRElevation:**_ Mean water level (elevation) in source
 _**maxRElevation:**_ Max water level (elevation) in source
 _**surface_elevation:**_ Mean surface elevation of patches in the simulated irrigation scheme
-_**rElevation:**_  shows water elevation in Tono dam (based on empirical data)
-_**rVolume:**_ shows volume of water (in MCM) corresponding to rElevation in Tono dam (based on empirical data)
-_Note:_ These 6 parameters are used to generate low, medium and high flows (all following a cosine pattern) acting as the water source (e.g., a bigger dam) supplying to the reservoir in our simulation
+_**rElevation:**_ Shows the average water level in meters above sea level (MASL) in Tono dam (Ghana) for each month of the year
+_**rVolume:**_ Shows the average volume of water in million cubic meters (MCM) in Tono dam (Ghana) corresponding to rElevation values each month. 
+
+_**Note:**_ An Area-Volume-Elevation mapping for a reservoir plays a key role in planning reservoir operations. We use _rElevation_ and _rVolume_ as an empirical reference to create simulated low, medium and high flows (all following a cosine pattern) based on _minRElevation_, _meanRElevation_, _maxRElevation_ and _surfaceRElevation_ to act as the water source (e.g., a bigger dam) supplying to the reservoir in our simulation
 
 
-#### The Irrigation Scheme Features input settings have 5 sliders:
+#### The Irrigation Scheme Features input settings have 8 controls:
 _**totIrrAllocation:**_ Controls what % of the total water available at source is supplied to the reservoir for irrigation use
 _**dischargeRate:**_ Controls the water flow rate (cubic metre per second) from the reservoir
 _**irrHoursPerDay:**_ Duration of each irrigation event (0-24 hours)
 _**irrDaysPerMonth:**_ Number of irrigation events each month (0 - 30 days) 
 _Note:_ As the model runs in monthly time steps, the water flow you see at the end of each tick (month) is an aggregate of water supplied over the course of a month
+_**irrigationEfficiency:**_ A value between 0 and 1 set via the interface as an approximation of how much water routed to the fields is effectively utilised for crop growth after losses (e.g., through evaporation)
 _**benevolence:**_ A value between 0 and 1 affecting how much water each patch shares with its neighbouring patches
+_**losses?:**_ Do you wish to simulate/mimic surface water evaporation from patches?
+_**lossRate:**_ simulates water evaporation from patches if losses? is set to true
 
 
-#### 2 more input parameters to simulate water losses from evaporation and absorption
-_**losses?:**_ Do you want to include (simulate) water losses through the likes of evaporation and absorption?
-_**loss_rate:**_ If losses? is true, at what rate is water lost?
+#### There are 9 crop growth settings - 8 input boxes and one chooser:
+
+_**wetCrop:**_ Name of ONE preferred rainy season crop
+_**dryCrop:**_ Name of ONE preferred dry season crop
+_**multiCrop:**_ Name of ONE preferred multi-season crop 
+_**onsetWetSeason:**_ Onset of the rainy season (value is a calendar month indicated in small case)
+_**onsetDrySeason:**_ Onset of the dry season (value is a calendar month indicated in small case)
+_**wcGrowingPeriod:**_ Duration of the growing season of the wetCrop (indicated in multiples of 30)
+_**dcGrowingPeriod:**_ Duration of the growing season of the dryCrop (indicated in multiples of 30)
+_**mcGrowingPeriod:**_ Duration of the growing season of the multiCrop (indicated in multiples of 30)
+_**growingStageSplit:**_ _Note:_ If you alter this data to suit your needs, please remember that the sum of the duration in each stage should equal to 1.0
+
+#### There are 5 input controls under the Temperature and Rainfall settings:
+
+_**mean_temp:**_ mean temperature in the simulated irrigation scheme (the values we have used are based on our case studies in Ghana)
+_**mean_prcp:**_ mean precipitation in the simulated irrigation scheme area
+_**temp_variation:**_ standard deviation temperature 
+_**prcp_variation:**_ standard deviation precipitation
+_**rainfall_pattern:**_ months when rainfall is expected in the simulated irrigation scheme area (indicated by 1) or not (indicated by 0) within a list of 12 values
+
 
 ## THINGS TO NOTICE
-
-Try changing the values of sliders in the Irrigation Scheme Features and see how that affects water supply and use
+Try changing the values of controls in the Interface and see how that affects water supply and use within the scheme. To keep track of the changes, make changes under one category at a time (e.g., Temperature and Rainfall) and see how that changes the outcomes. See if you can break the model. If you can, try fixing it and write to us (we will be happy to see your pull requests on GitHub) or write to us with issues and we will try getting it fixed to improve the model - and thereby all contributing to open and reproducible research. 
 
 ## THINGS TO TRY
-
-Try changing the values of sliders in the Irrigation Scheme Features and see how that affects water supply and use
-
-Try changing the benevolence parameter to see how that affects water sharing between patches. Think how you might convert the benevolence parameter into a procedure that simulates different levels of willingness among water users (on water recipient patches) to share water with other water users
+Try changing the values of controls in the Interface and see how that affects water supply and use within the scheme. Try changing the benevolence parameter to see how that affects water sharing between patches. Think how you might convert the benevolence parameter into a procedure that simulates different levels of willingness among water users (on water recipient patches) to share water with other water users. Try to think also how you might introduce new agent categories or procedures to model water management policies within this simulated irrigated scheme.
 
 ## EXTENDING THE MODEL
 
-What we are trying to achieve here is to simulate the routing of water available at source through a canal network in an irrigation scheme by mimicking gravity-based flow, whereby water flows from a higher elevation to lower elevations
-
-The plot called _water in the irrigation scheme_ shows how much of the water allocated for irrigation is being effectively supplied to water recipients. Try making changes to the route-water procedure to see if you can minimise the difference between water supply and water use
+What we are trying to achieve here is to simulate the routing of water available at source through a canal network in an irrigation scheme by mimicking gravity-based flow, whereby water flows from a higher elevation to lower elevations. The plot called _water in the irrigation scheme_ shows how much of the water allocated for irrigation is being effectively supplied to water recipients. Try making changes to the route-water procedure to see if you can minimise the difference between water supply and water use. Try making changes to the set-crop-rota, calc-irr-demand and tarck-crop-growth procedures (and changes within the helper procedures they call) to model different ways of irrigation and crop growth.
 
 ## NETLOGO FEATURES
 
@@ -1572,6 +1598,9 @@ The WATERING_CROPGROWTH_RBB uses the Blaney Criddle Method to calculate crop wat
 ## CREDITS AND REFERENCES
 
 Please email Dr Kavin Narasimhan (k.narasimhan@surrey.ac.uk) for comments/queries. If you adapt/use the WATERING_CROPGROWTH_RBB model, we would appreciate if you cite our GitHub repo. Acknowledgment: This work was supported by UK Research and Innovation Economic and Social Research Council [ES/P011373/1] as part of the Global Challenges Research Fund.
+
+_**About WATERING:** WATERING was developed as an exploratory tool to understand and explain how participatory irrigation management through Water User Associations (WUAs) work. The model allows exploring the impact of community-based water management (through WUAs) on water availability, water use and economic productivity within an irrigation scheme. Please see https://www.youtube.com/watch?v=U-nqs9ak2nY for more information._
+_**Note:** This RBB is not WATERING, it is a sub-model of WATERING which mimics water flow and crop growth an irrigation scheme - you can change the values of the input controls via the Interface and see how that affects water use and crop growth within the scheme (through visualisation in the NetLogo world and output plots). Our complete WATERING model includes other components to simulate various aspects of community-based water management through WUAs_
 @#$#@#$#@
 default
 true
